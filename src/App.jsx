@@ -1137,6 +1137,22 @@ export default function LateralQuest() {
   const [difficulty, setDifficulty] = useState('normal');
   const [genre, setGenre] = useState('random');
   const [hasPlayedTutorial, setHasPlayedTutorial] = useState(false);
+
+  // API Key management - supports both env var (local) and localStorage (GitHub Pages)
+  const [apiKey, setApiKey] = useState(() => {
+    const envKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+    if (envKey && envKey !== 'your_api_key_here') {
+      return envKey;
+    }
+    return localStorage.getItem('lateralquest_api_key') || '';
+  });
+
+  // Save API key to localStorage when changed
+  useEffect(() => {
+    if (apiKey && !import.meta.env.VITE_ANTHROPIC_API_KEY) {
+      localStorage.setItem('lateralquest_api_key', apiKey);
+    }
+  }, [apiKey]);
   
   // Audio UI state
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
@@ -1296,25 +1312,43 @@ ${JSON.stringify(payload, null, 2)}`;
     }
     
     try {
+      // Check if API key is available
+      if (!apiKey) {
+        throw new Error('API_KEY_MISSING');
+      }
+
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
+        },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 1500,
           system: SYSTEM_PROMPT,
           messages: [
-            { 
-              role: 'user', 
+            {
+              role: 'user',
               content: contextMessage
             }
           ]
         })
       });
       
+      // Check for API errors
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          throw new Error('API_KEY_INVALID');
+        }
+        throw new Error(errorData.error?.message || `API Error: ${response.status}`);
+      }
+
       const data = await response.json();
       const text = data.content?.[0]?.text || '{}';
-      
+
       // Extract JSON from response
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -1323,6 +1357,14 @@ ${JSON.stringify(payload, null, 2)}`;
       throw new Error('Invalid JSON response');
     } catch (error) {
       console.error('LLM Error:', error);
+
+      // Provide user-friendly error messages
+      if (error.message === 'API_KEY_MISSING') {
+        return { type: 'error', message: 'APIキーが設定されていません。設定画面でAPIキーを入力してください。' };
+      }
+      if (error.message === 'API_KEY_INVALID') {
+        return { type: 'error', message: 'APIキーが無効です。設定画面で正しいAPIキーを入力してください。' };
+      }
       return { type: 'error', message: 'エラーが発生しました。もう一度お試しください。' };
     }
   };
@@ -1344,14 +1386,17 @@ ${JSON.stringify(payload, null, 2)}`;
     prevProgressRef.current = 0;
     
     const result = await callLLM('start');
-    
+
     if (result.type === 'problem') {
       setProblemText(result.message);
       setTruthText(''); // Will be revealed later
       setIsActive(true);
-      
+
       // Transition with audio fade
       transitionScreen(() => setScreen('game'));
+    } else if (result.type === 'error') {
+      // Show error message to user
+      alert(result.message);
     }
     setIsLoading(false);
   };
@@ -1882,7 +1927,70 @@ ${JSON.stringify(payload, null, 2)}`;
               ))}
             </div>
           </div>
-          
+
+          {/* API Key Input (only show if not using env var) */}
+          {!import.meta.env.VITE_ANTHROPIC_API_KEY && (
+            <div style={{
+              width: '100%',
+              maxWidth: '320px',
+              marginBottom: '2rem'
+            }}>
+              <label style={{
+                display: 'block',
+                fontSize: '0.85rem',
+                color: '#71717a',
+                marginBottom: '0.75rem',
+                letterSpacing: '0.1em'
+              }}>
+                Anthropic API キー
+                <a
+                  href="https://console.anthropic.com/settings/keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    marginLeft: '0.5rem',
+                    fontSize: '0.75rem',
+                    color: '#7877c6',
+                    textDecoration: 'none'
+                  }}
+                >
+                  (取得する)
+                </a>
+              </label>
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="sk-ant-..."
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  fontSize: '0.85rem',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '6px',
+                  color: '#e4e4e7',
+                  outline: 'none',
+                  transition: 'all 0.2s ease'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = 'rgba(120, 119, 198, 0.5)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                }}
+              />
+              <p style={{
+                fontSize: '0.7rem',
+                color: '#52525b',
+                marginTop: '0.5rem',
+                lineHeight: 1.4
+              }}>
+                ※ ブラウザに保存されます。APIキーは安全に管理してください。
+              </p>
+            </div>
+          )}
+
           {/* Genre */}
           <div style={{
             width: '100%',
@@ -1945,7 +2053,7 @@ ${JSON.stringify(payload, null, 2)}`;
           
           <button
             onClick={startGame}
-            disabled={isLoading}
+            disabled={isLoading || !apiKey}
             style={{
               padding: '1rem 3rem',
               fontSize: '1rem',
@@ -1955,13 +2063,24 @@ ${JSON.stringify(payload, null, 2)}`;
               border: '1px solid rgba(120, 119, 198, 0.5)',
               borderRadius: '8px',
               color: '#e4e4e7',
-              cursor: isLoading ? 'wait' : 'pointer',
+              cursor: (isLoading || !apiKey) ? 'not-allowed' : 'pointer',
               transition: 'all 0.3s ease',
-              opacity: isLoading ? 0.6 : 1
+              opacity: (isLoading || !apiKey) ? 0.6 : 1
             }}
           >
-            {isLoading ? '問題を生成中...' : 'スタート'}
+            {isLoading ? '問題を生成中...' : !apiKey ? 'APIキーが必要です' : 'スタート'}
           </button>
+
+          {!apiKey && !import.meta.env.VITE_ANTHROPIC_API_KEY && (
+            <p style={{
+              fontSize: '0.8rem',
+              color: '#ef4444',
+              marginTop: '1rem',
+              textAlign: 'center'
+            }}>
+              ゲームを開始するにはAPIキーが必要です
+            </p>
+          )}
         </div>
       )}
 
