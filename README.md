@@ -1,6 +1,21 @@
 # Lateral Quest
 
-A browser-based lateral thinking puzzle game powered by Claude AI, built with React and Vite.
+A browser-based lateral thinking puzzle game built with React and Vite.
+
+## Game Modes
+
+### 🎮 Offline Mode (Recommended)
+Play immediately with pre-defined, hand-crafted puzzles. **No API key required!**
+- 15+ curated lateral thinking puzzles
+- 7 different genres (daily life, work, school, relationship, medical, mystery, dark)
+- 3 difficulty levels
+- Perfect for quick play sessions
+
+### 🤖 AI Mode (Optional)
+Generate unlimited unique puzzles powered by Claude AI.
+- Requires Anthropic API key
+- Every puzzle is freshly generated
+- Adapts to your chosen difficulty and genre
 
 ## Setup
 
@@ -10,9 +25,9 @@ A browser-based lateral thinking puzzle game powered by Claude AI, built with Re
 npm install
 ```
 
-### 2. Configure API Key
+### 2. Configure API Key (Only for AI Mode)
 
-This game uses the Anthropic Claude API to generate puzzles. You need an API key to play.
+If you want to use AI-generated puzzles, you'll need an Anthropic API key.
 
 #### For Local Development (Recommended)
 
@@ -76,8 +91,16 @@ The GitHub Actions workflow (`.github/workflows/deploy.yml`) will automatically:
 
 ## How to Play
 
-1. Start the game and choose difficulty & genre
-2. Enter your Anthropic API key (if not using .env)
-3. AI generates a unique lateral thinking puzzle
-4. Ask yes/no questions to uncover the truth
-5. Make your final guess to solve the mystery!
+### Quick Start (Offline Mode)
+1. Click "ゲームを始める" (Start Game)
+2. Select "オフライン" (Offline) mode
+3. Choose difficulty and genre
+4. Click "スタート" to begin
+5. Ask yes/no questions to uncover the truth
+6. Make your final guess to solve the mystery!
+
+### AI Mode
+1. Follow steps 1-2 above but select "AI生成" (AI Generation) mode
+2. Enter your API key (first time only)
+3. AI generates a unique puzzle for you
+4. Play as usual!

@@ -1137,6 +1137,7 @@ export default function LateralQuest() {
   const [difficulty, setDifficulty] = useState('normal');
   const [genre, setGenre] = useState('random');
   const [hasPlayedTutorial, setHasPlayedTutorial] = useState(false);
+  const [gameMode, setGameMode] = useState('offline'); // 'ai' or 'offline' - default to offline for no API key needed
 
   // API Key management - supports both env var (local) and localStorage (GitHub Pages)
   const [apiKey, setApiKey] = useState(() => {
@@ -1205,6 +1206,82 @@ export default function LateralQuest() {
     return () => document.removeEventListener('click', handleClickOutside);
   }, [showVolumeSlider]);
   
+  // Generate offline response (simple keyword matching for pre-defined problems)
+  const generateOfflineResponse = (question, truth, currentProgress) => {
+    const q = question.toLowerCase();
+    const keywords = {
+      // Common lateral thinking question patterns
+      person: /人|男|女|誰|彼|彼女/,
+      place: /場所|どこ|部屋|店|家/,
+      time: /時間|いつ|毎日|朝|夜/,
+      reason: /なぜ|理由|どうして/,
+      object: /物|何|もの|こと/,
+      death: /死|殺|亡くなる|命/,
+      family: /家族|妻|夫|子|親|娘|息子/,
+      work: /仕事|会社|職|勤務/,
+    };
+
+    // Simple yes/no logic based on truth text content
+    let answer = 'unknown';
+    let progressIncrease = 5;
+
+    // Check if question keywords match truth content
+    if (q.includes('人') || q.includes('男') || q.includes('女')) {
+      if (truth.includes('男') || truth.includes('女') || truth.includes('人')) {
+        answer = 'yes';
+        progressIncrease = 10;
+      } else {
+        answer = 'no';
+        progressIncrease = 5;
+      }
+    } else if (q.includes('家族') || q.includes('妻') || q.includes('夫') || q.includes('子') || q.includes('娘') || q.includes('息子') || q.includes('親')) {
+      if (truth.includes('家族') || truth.includes('妻') || truth.includes('夫') || truth.includes('子') || truth.includes('娘') || truth.includes('息子') || truth.includes('親') || truth.includes('父') || truth.includes('母')) {
+        answer = 'yes';
+        progressIncrease = 15;
+      } else {
+        answer = 'no';
+        progressIncrease = 5;
+      }
+    } else if (q.includes('死') || q.includes('殺') || q.includes('亡くな')) {
+      if (truth.includes('死') || truth.includes('殺') || truth.includes('亡くな') || truth.includes('命')) {
+        answer = 'yes';
+        progressIncrease = 12;
+      } else {
+        answer = 'no';
+        progressIncrease = 5;
+      }
+    } else if (q.includes('仕事') || q.includes('会社') || q.includes('職')) {
+      if (truth.includes('仕事') || truth.includes('会社') || truth.includes('職') || truth.includes('勤務')) {
+        answer = 'yes';
+        progressIncrease = 10;
+      } else {
+        answer = 'no';
+        progressIncrease = 5;
+      }
+    } else {
+      // Random answer for generic questions
+      const random = Math.random();
+      if (random < 0.4) answer = 'yes';
+      else if (random < 0.7) answer = 'no';
+      else if (random < 0.9) answer = 'irrelevant';
+      else answer = 'unknown';
+      progressIncrease = answer === 'yes' ? 8 : 3;
+    }
+
+    const newProgress = Math.min(currentProgress + progressIncrease, 100);
+    const newQuestionCount = questionCount + 1;
+
+    return {
+      type: 'answer',
+      answer,
+      message: getNarration(answer),
+      progress: newProgress,
+      question_count: newQuestionCount,
+      hint_level: 0,
+      is_active: newProgress < 100
+    };
+  };
+
   // Call LLM API
   const callLLM = async (action, extraInput = '') => {
     const payload = {
@@ -1400,7 +1477,40 @@ ${JSON.stringify(payload, null, 2)}`;
     }
     setIsLoading(false);
   };
-  
+
+  // Start offline game with pre-defined problems
+  const startOfflineGame = async () => {
+    // Initialize audio on first user interaction
+    await initAudio();
+    playSE('click');
+
+    setIsLoading(true);
+    setChatLog([]);
+    setProgress(0);
+    setQuestionCount(0);
+    setHintLevel(0);
+    setUserGuess('');
+    setGradeResult(null);
+    setShowGuessInput(false);
+    prevProgressRef.current = 0;
+
+    // Select random problem from the chosen genre
+    const genreKey = genre === 'random'
+      ? ['daily', 'work', 'school', 'relationship', 'medical', 'mystery', 'dark'][Math.floor(Math.random() * 7)]
+      : genre;
+
+    const problems = EXAMPLE_PROBLEMS[genreKey] || EXAMPLE_PROBLEMS.daily;
+    const selectedProblem = problems[Math.floor(Math.random() * problems.length)];
+
+    setProblemText(selectedProblem.problem);
+    setTruthText(selectedProblem.truth);
+    setIsActive(true);
+
+    // Transition with audio fade
+    transitionScreen(() => setScreen('game'));
+    setIsLoading(false);
+  };
+
   // Start tutorial
   const startTutorial = async () => {
     // Initialize audio on first user interaction
@@ -1485,20 +1595,27 @@ ${JSON.stringify(payload, null, 2)}`;
   // Handle question submission
   const handleQuestion = async () => {
     if (!userInput.trim() || isLoading || !isActive) return;
-    
+
     if (screen === 'tutorial') {
       handleTutorialQuestion();
       return;
     }
-    
+
     playSE('send');
-    
+
     const question = userInput.trim();
     setUserInput('');
     setChatLog(prev => [...prev, { type: 'user', text: question }]);
     setIsLoading(true);
-    
-    const result = await callLLM('question', question);
+
+    let result;
+
+    // Use offline mode if selected
+    if (gameMode === 'offline') {
+      result = generateOfflineResponse(question, truthText, progress);
+    } else {
+      result = await callLLM('question', question);
+    }
     
     if (result.answer) {
       setChatLog(prev => [...prev, { 
@@ -1882,7 +1999,80 @@ ${JSON.stringify(payload, null, 2)}`;
           }}>
             設定
           </h2>
-          
+
+          {/* Game Mode Selection */}
+          <div style={{
+            width: '100%',
+            maxWidth: '320px',
+            marginBottom: '2rem'
+          }}>
+            <label style={{
+              display: 'block',
+              fontSize: '0.85rem',
+              color: '#71717a',
+              marginBottom: '0.75rem',
+              letterSpacing: '0.1em'
+            }}>
+              ゲームモード
+            </label>
+            <div style={{
+              display: 'flex',
+              gap: '0.5rem'
+            }}>
+              <button
+                onClick={() => setGameMode('offline')}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  fontSize: '0.85rem',
+                  background: gameMode === 'offline'
+                    ? 'linear-gradient(135deg, rgba(120, 119, 198, 0.3) 0%, rgba(255, 119, 168, 0.2) 100%)'
+                    : 'rgba(255, 255, 255, 0.03)',
+                  border: gameMode === 'offline'
+                    ? '1px solid rgba(120, 119, 198, 0.5)'
+                    : '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '6px',
+                  color: gameMode === 'offline' ? '#e4e4e7' : '#71717a',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                オフライン
+              </button>
+              <button
+                onClick={() => setGameMode('ai')}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  fontSize: '0.85rem',
+                  background: gameMode === 'ai'
+                    ? 'linear-gradient(135deg, rgba(120, 119, 198, 0.3) 0%, rgba(255, 119, 168, 0.2) 100%)'
+                    : 'rgba(255, 255, 255, 0.03)',
+                  border: gameMode === 'ai'
+                    ? '1px solid rgba(120, 119, 198, 0.5)'
+                    : '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '6px',
+                  color: gameMode === 'ai' ? '#e4e4e7' : '#71717a',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                AI生成
+              </button>
+            </div>
+            <p style={{
+              fontSize: '0.7rem',
+              color: '#52525b',
+              marginTop: '0.5rem',
+              lineHeight: 1.4
+            }}>
+              {gameMode === 'offline'
+                ? '※ 事前に用意された良質な問題をプレイ（APIキー不要）'
+                : '※ AIが毎回新しい問題を生成（APIキーが必要）'
+              }
+            </p>
+          </div>
+
           {/* Difficulty */}
           <div style={{
             width: '100%',
@@ -1928,8 +2118,8 @@ ${JSON.stringify(payload, null, 2)}`;
             </div>
           </div>
 
-          {/* API Key Input (only show if not using env var) */}
-          {!import.meta.env.VITE_ANTHROPIC_API_KEY && (
+          {/* API Key Input (only show if AI mode and not using env var) */}
+          {gameMode === 'ai' && !import.meta.env.VITE_ANTHROPIC_API_KEY && (
             <div style={{
               width: '100%',
               maxWidth: '320px',
@@ -2052,8 +2242,8 @@ ${JSON.stringify(payload, null, 2)}`;
           </div>
           
           <button
-            onClick={startGame}
-            disabled={isLoading || !apiKey}
+            onClick={gameMode === 'offline' ? startOfflineGame : startGame}
+            disabled={isLoading || (gameMode === 'ai' && !apiKey)}
             style={{
               padding: '1rem 3rem',
               fontSize: '1rem',
@@ -2063,22 +2253,22 @@ ${JSON.stringify(payload, null, 2)}`;
               border: '1px solid rgba(120, 119, 198, 0.5)',
               borderRadius: '8px',
               color: '#e4e4e7',
-              cursor: (isLoading || !apiKey) ? 'not-allowed' : 'pointer',
+              cursor: (isLoading || (gameMode === 'ai' && !apiKey)) ? 'not-allowed' : 'pointer',
               transition: 'all 0.3s ease',
-              opacity: (isLoading || !apiKey) ? 0.6 : 1
+              opacity: (isLoading || (gameMode === 'ai' && !apiKey)) ? 0.6 : 1
             }}
           >
-            {isLoading ? '問題を生成中...' : !apiKey ? 'APIキーが必要です' : 'スタート'}
+            {isLoading ? '問題を生成中...' : (gameMode === 'ai' && !apiKey) ? 'APIキーが必要です' : 'スタート'}
           </button>
 
-          {!apiKey && !import.meta.env.VITE_ANTHROPIC_API_KEY && (
+          {gameMode === 'ai' && !apiKey && !import.meta.env.VITE_ANTHROPIC_API_KEY && (
             <p style={{
               fontSize: '0.8rem',
               color: '#ef4444',
               marginTop: '1rem',
               textAlign: 'center'
             }}>
-              ゲームを開始するにはAPIキーが必要です
+              AI生成モードではAPIキーが必要です
             </p>
           )}
         </div>
