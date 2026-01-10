@@ -1480,35 +1480,46 @@ ${JSON.stringify(payload, null, 2)}`;
 
   // Start offline game with pre-defined problems
   const startOfflineGame = async () => {
-    // Initialize audio on first user interaction
-    await initAudio();
-    playSE('click');
+    console.log('startOfflineGame called');
+    try {
+      // Initialize audio on first user interaction
+      await initAudio();
+      playSE('click');
+      console.log('Audio initialized');
 
-    setIsLoading(true);
-    setChatLog([]);
-    setProgress(0);
-    setQuestionCount(0);
-    setHintLevel(0);
-    setUserGuess('');
-    setGradeResult(null);
-    setShowGuessInput(false);
-    prevProgressRef.current = 0;
+      setIsLoading(true);
+      setChatLog([]);
+      setProgress(0);
+      setQuestionCount(0);
+      setHintLevel(0);
+      setUserGuess('');
+      setGradeResult(null);
+      setShowGuessInput(false);
+      prevProgressRef.current = 0;
 
-    // Select random problem from the chosen genre
-    const genreKey = genre === 'random'
-      ? ['daily', 'work', 'school', 'relationship', 'medical', 'mystery', 'dark'][Math.floor(Math.random() * 7)]
-      : genre;
+      // Select random problem from the chosen genre
+      const genreKey = genre === 'random'
+        ? ['daily', 'work', 'school', 'relationship', 'medical', 'mystery', 'dark'][Math.floor(Math.random() * 7)]
+        : genre;
 
-    const problems = EXAMPLE_PROBLEMS[genreKey] || EXAMPLE_PROBLEMS.daily;
-    const selectedProblem = problems[Math.floor(Math.random() * problems.length)];
+      const problems = EXAMPLE_PROBLEMS[genreKey] || EXAMPLE_PROBLEMS.daily;
+      const selectedProblem = problems[Math.floor(Math.random() * problems.length)];
 
-    setProblemText(selectedProblem.problem);
-    setTruthText(selectedProblem.truth);
-    setIsActive(true);
+      console.log('Selected problem:', selectedProblem);
 
-    // Transition with audio fade
-    transitionScreen(() => setScreen('game'));
-    setIsLoading(false);
+      setProblemText(selectedProblem.problem);
+      setTruthText(selectedProblem.truth);
+      setIsActive(true);
+
+      console.log('Transitioning to game screen');
+      // Transition with audio fade
+      transitionScreen(() => setScreen('game'));
+    } catch (error) {
+      console.error('Offline game start error:', error);
+      alert('オフラインモードの開始に失敗しました。ページを再読み込みしてください。');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Start tutorial
@@ -2242,7 +2253,14 @@ ${JSON.stringify(payload, null, 2)}`;
           </div>
           
           <button
-            onClick={gameMode === 'offline' ? startOfflineGame : startGame}
+            onClick={() => {
+              console.log('Start button clicked. Mode:', gameMode);
+              if (gameMode === 'offline') {
+                startOfflineGame();
+              } else {
+                startGame();
+              }
+            }}
             disabled={isLoading || (gameMode === 'ai' && !apiKey)}
             style={{
               padding: '1rem 3rem',
