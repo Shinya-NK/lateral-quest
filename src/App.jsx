@@ -55,6 +55,12 @@ const useAudioManager = () => {
   
   useEffect(() => {
     localStorage.setItem('lateralquest_se_volume', JSON.stringify(seVolume));
+    if (seGainRef.current && audioContextRef.current) {
+      seGainRef.current.gain.setValueAtTime(
+        seVolume / 100 * 0.5,
+        audioContextRef.current.currentTime
+      );
+    }
   }, [seVolume]);
 
   // Initialize AudioContext
@@ -669,24 +675,24 @@ const useAudioManager = () => {
 
   // Start BGM
   const startBgm = useCallback((fadeIn = true) => {
-    if (!audioContextRef.current || !isBgmOn) return;
+    if (!audioContextRef.current) return;
     if (isPlayingRef.current) return;
-    
+
     try {
       if (fadeIn) {
         masterGainRef.current.gain.setValueAtTime(0, audioContextRef.current.currentTime);
       }
-      
+
       isPlayingRef.current = true;
       playBgmLoop();
-      
+
       if (fadeIn) {
         fadeInBgm(1000);
       }
     } catch (error) {
       console.error('Failed to start BGM:', error);
     }
-  }, [isBgmOn, playBgmLoop, fadeInBgm]);
+  }, [playBgmLoop, fadeInBgm]);
 
   // Stop BGM
   const stopBgm = useCallback(async (fadeOut = true) => {
@@ -708,13 +714,24 @@ const useAudioManager = () => {
   const toggleBgm = useCallback(() => {
     setIsBgmOn(prev => {
       const newValue = !prev;
-      if (newValue && isUnlockedRef.current) {
-        // Always restart BGM when turning on
-        setTimeout(() => startBgm(true), 0);
-      } else if (!newValue) {
-        // Always stop BGM when turning off
-        stopBgm(true);
-      }
+      // Use setTimeout to ensure state has updated
+      setTimeout(() => {
+        if (newValue && isUnlockedRef.current) {
+          // Restart BGM when turning on
+          if (isPlayingRef.current) {
+            // Stop current BGM without fade
+            if (bgmIntervalRef.current) {
+              clearTimeout(bgmIntervalRef.current);
+              bgmIntervalRef.current = null;
+            }
+            isPlayingRef.current = false;
+          }
+          startBgm(true);
+        } else if (!newValue) {
+          // Stop BGM when turning off
+          stopBgm(true);
+        }
+      }, 0);
       return newValue;
     });
   }, [startBgm, stopBgm]);
