@@ -2398,19 +2398,26 @@ ${JSON.stringify(payload, null, 2)}`;
                 
                 {/* Volume Slider Dropdown */}
                 {showVolumeSlider && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    right: 0,
-                    marginTop: '0.5rem',
-                    background: 'rgba(30, 30, 50, 0.95)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    padding: '1rem',
-                    zIndex: 100,
-                    minWidth: '180px',
-                    backdropFilter: 'blur(10px)'
-                  }}>
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => {
+                      console.log('Dropdown mousedown');
+                      e.stopPropagation();
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: 0,
+                      marginTop: '0.5rem',
+                      background: 'rgba(30, 30, 50, 0.95)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      padding: '1rem',
+                      zIndex: 1000,
+                      minWidth: '180px',
+                      backdropFilter: 'blur(10px)',
+                      pointerEvents: 'auto'
+                    }}>
                     {/* BGM Volume */}
                     <div style={{ marginBottom: '0.75rem' }}>
                       <div style={{
@@ -2419,7 +2426,7 @@ ${JSON.stringify(payload, null, 2)}`;
                         alignItems: 'center',
                         marginBottom: '0.4rem'
                       }}>
-                        <span style={{ fontSize: '0.75rem', color: '#a1a1aa' }}>🎵 BGM</span>
+                        <span style={{ fontSize: '0.75rem', color: '#a1a1aa' }}>🎵 BGM {isBgmOn ? '(ON)' : '(OFF)'}</span>
                         <span style={{ fontSize: '0.7rem', color: '#71717a' }}>{bgmVolume}%</span>
                       </div>
                       <input
@@ -2427,6 +2434,10 @@ ${JSON.stringify(payload, null, 2)}`;
                         min="0"
                         max="100"
                         value={bgmVolume}
+                        onMouseDown={(e) => {
+                          console.log('BGM slider mousedown');
+                          if (!isBgmOn) e.preventDefault();
+                        }}
                         onChange={(e) => {
                           if (!isBgmOn) return;
                           e.stopPropagation();
@@ -2444,7 +2455,10 @@ ${JSON.stringify(payload, null, 2)}`;
                           width: '100%',
                           opacity: isBgmOn ? 1 : 0.3,
                           cursor: isBgmOn ? 'pointer' : 'not-allowed',
-                          pointerEvents: isBgmOn ? 'auto' : 'none'
+                          pointerEvents: isBgmOn ? 'auto' : 'none',
+                          position: 'relative',
+                          zIndex: 10,
+                          touchAction: 'none'
                         }}
                       />
                     </div>
@@ -2457,7 +2471,7 @@ ${JSON.stringify(payload, null, 2)}`;
                         alignItems: 'center',
                         marginBottom: '0.4rem'
                       }}>
-                        <span style={{ fontSize: '0.75rem', color: '#a1a1aa' }}>🔊 SE</span>
+                        <span style={{ fontSize: '0.75rem', color: '#a1a1aa' }}>🔊 SE {isSEOn ? '(ON)' : '(OFF)'}</span>
                         <span style={{ fontSize: '0.7rem', color: '#71717a' }}>{seVolume}%</span>
                       </div>
                       <input
@@ -2465,6 +2479,10 @@ ${JSON.stringify(payload, null, 2)}`;
                         min="0"
                         max="100"
                         value={seVolume}
+                        onMouseDown={(e) => {
+                          console.log('SE slider mousedown');
+                          if (!isSEOn) e.preventDefault();
+                        }}
                         onChange={(e) => {
                           if (!isSEOn) return;
                           e.stopPropagation();
@@ -2482,7 +2500,10 @@ ${JSON.stringify(payload, null, 2)}`;
                           width: '100%',
                           opacity: isSEOn ? 1 : 0.3,
                           cursor: isSEOn ? 'pointer' : 'not-allowed',
-                          pointerEvents: isSEOn ? 'auto' : 'none'
+                          pointerEvents: isSEOn ? 'auto' : 'none',
+                          position: 'relative',
+                          zIndex: 10,
+                          touchAction: 'none'
                         }}
                       />
                     </div>
