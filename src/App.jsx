@@ -2404,7 +2404,9 @@ ${JSON.stringify(payload, null, 2)}`;
                         disabled={!isBgmOn}
                         style={{
                           width: '100%',
-                          opacity: isBgmOn ? 1 : 0.3
+                          opacity: isBgmOn ? 1 : 0.3,
+                          pointerEvents: isBgmOn ? 'auto' : 'none',
+                          cursor: isBgmOn ? 'pointer' : 'not-allowed'
                         }}
                       />
                     </div>
@@ -2429,7 +2431,9 @@ ${JSON.stringify(payload, null, 2)}`;
                         disabled={!isSEOn}
                         style={{
                           width: '100%',
-                          opacity: isSEOn ? 1 : 0.3
+                          opacity: isSEOn ? 1 : 0.3,
+                          pointerEvents: isSEOn ? 'auto' : 'none',
+                          cursor: isSEOn ? 'pointer' : 'not-allowed'
                         }}
                       />
                     </div>
@@ -2682,11 +2686,18 @@ ${JSON.stringify(payload, null, 2)}`;
                   borderRadius: '8px',
                   color: '#e4e4e7',
                   outline: 'none',
-                  transition: 'border-color 0.2s ease'
+                  transition: 'border-color 0.2s ease',
+                  pointerEvents: 'auto',
+                  position: 'relative',
+                  zIndex: 1
                 }}
               />
               <button
-                onClick={handleQuestion}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleQuestion();
+                }}
                 disabled={!isActive || isLoading || !userInput.trim()}
                 style={{
                   padding: '0.75rem 1.25rem',
@@ -2694,10 +2705,13 @@ ${JSON.stringify(payload, null, 2)}`;
                   border: '1px solid rgba(120, 119, 198, 0.4)',
                   borderRadius: '8px',
                   color: '#e4e4e7',
-                  cursor: !isActive || isLoading ? 'not-allowed' : 'pointer',
+                  cursor: !isActive || isLoading || !userInput.trim() ? 'not-allowed' : 'pointer',
                   opacity: !isActive || isLoading || !userInput.trim() ? 0.5 : 1,
                   fontSize: '0.85rem',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  pointerEvents: 'auto',
+                  position: 'relative',
+                  zIndex: 1
                 }}
               >
                 {isLoading ? '...' : '送信'}
