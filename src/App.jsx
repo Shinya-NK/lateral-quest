@@ -1137,23 +1137,6 @@ export default function LateralQuest() {
   const [difficulty, setDifficulty] = useState('normal');
   const [genre, setGenre] = useState('random');
   const [hasPlayedTutorial, setHasPlayedTutorial] = useState(false);
-  const [gameMode, setGameMode] = useState('offline'); // 'ai' or 'offline' - default to offline for no API key needed
-
-  // API Key management - supports both env var (local) and localStorage (GitHub Pages)
-  const [apiKey, setApiKey] = useState(() => {
-    const envKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-    if (envKey && envKey !== 'your_api_key_here') {
-      return envKey;
-    }
-    return localStorage.getItem('lateralquest_api_key') || '';
-  });
-
-  // Save API key to localStorage when changed
-  useEffect(() => {
-    if (apiKey && !import.meta.env.VITE_ANTHROPIC_API_KEY) {
-      localStorage.setItem('lateralquest_api_key', apiKey);
-    }
-  }, [apiKey]);
   
   // Audio UI state
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
@@ -1619,14 +1602,8 @@ ${JSON.stringify(payload, null, 2)}`;
     setChatLog(prev => [...prev, { type: 'user', text: question }]);
     setIsLoading(true);
 
-    let result;
-
-    // Use offline mode if selected
-    if (gameMode === 'offline') {
-      result = generateOfflineResponse(question, truthText, progress);
-    } else {
-      result = await callLLM('question', question);
-    }
+    // Generate offline response
+    const result = generateOfflineResponse(question, truthText, progress);
     
     if (result.answer) {
       setChatLog(prev => [...prev, { 
@@ -1662,18 +1639,20 @@ ${JSON.stringify(payload, null, 2)}`;
       playSE('error');
       return;
     }
-    
+
     playSE('hint');
-    
-    setIsLoading(true);
-    const result = await callLLM('hint');
-    
-    if (result.message) {
-      setChatLog(prev => [...prev, { type: 'hint', text: result.message }]);
-      setHintLevel(result.hint_level ?? hintLevel + 1);
-    }
-    
-    setIsLoading(false);
+
+    // Offline mode: provide simple generic hints
+    const hints = [
+      '💡 登場人物の職業や立場に注目してみましょう',
+      '💡 言葉の裏にある真の意味を考えてみましょう',
+      '💡 時間や場所の詳細について質問してみましょう'
+    ];
+
+    const hintText = hints[hintLevel] || '💡 真相に近づいています';
+    setChatLog(prev => [...prev, { type: 'hint', text: hintText }]);
+    setHintLevel(hintLevel + 1);
+    setProgress(Math.min(progress + 10, 100));
   };
   
   // Handle reveal (can be called when progress >= 90 OR when all hints used as give up)
@@ -1684,48 +1663,55 @@ ${JSON.stringify(payload, null, 2)}`;
       playSE('error');
       return;
     }
-    
-    setIsLoading(true);
-    const result = await callLLM('reveal');
-    
-    if (result.type === 'result') {
-      setTruthText(result.message);
-      setIsActive(false);
-      // Different title based on whether it was a solve or give up
-      const title = progress >= 90 
-        ? getTitleFromStats(progress, questionCount, hintLevel, null)
-        : 'Curious Explorer'; // Give up title
-      setFinalTitle(title);
-      
-      // Play SE based on result
-      if (progress >= 90) {
-        playSE('clear');
-      } else {
-        playSE('reveal');
-      }
-      
-      // Transition with audio fade
-      transitionScreen(() => setScreen('result'));
+
+    setIsActive(false);
+    // Different title based on whether it was a solve or give up
+    const title = progress >= 90
+      ? getTitleFromStats(progress, questionCount, hintLevel, null)
+      : 'Curious Explorer'; // Give up title
+    setFinalTitle(title);
+
+    // Play SE based on result
+    if (progress >= 90) {
+      playSE('clear');
+    } else {
+      playSE('reveal');
     }
-    
-    setIsLoading(false);
+
+    // Transition with audio fade
+    transitionScreen(() => setScreen('result'));
   };
   
   // Handle user guess grading
   const handleGradeGuess = async () => {
     if (!userGuess.trim() || isLoading) return;
-    
-    setIsLoading(true);
-    const result = await callLLM('grade_guess', userGuess);
-    
-    if (result.grade) {
-      setGradeResult(result.grade);
-      if (result.grade.bonus_title) {
-        setFinalTitle(result.grade.bonus_title);
-      }
+
+    // Simple keyword matching for grading
+    const guess = userGuess.toLowerCase();
+    const truth = truthText.toLowerCase();
+
+    // Check if guess contains key elements from truth
+    const keywords = truth.split(/[。、\s]+/).filter(w => w.length > 2);
+    const matchCount = keywords.filter(keyword => guess.includes(keyword)).length;
+    const matchRate = matchCount / Math.max(keywords.length, 1);
+
+    let score, comment;
+    if (matchRate >= 0.6) {
+      score = 'excellent';
+      comment = '素晴らしい推理です！核心を完璧に捉えています。';
+    } else if (matchRate >= 0.4) {
+      score = 'good';
+      comment = '良い推理です！重要な要素を掴んでいます。';
+    } else if (matchRate >= 0.2) {
+      score = 'fair';
+      comment = 'まずまずの推理です。いくつか重要な点を見逃しています。';
+    } else {
+      score = 'poor';
+      comment = '惜しいです。もう少し核心に迫る必要があります。';
     }
-    
-    setIsLoading(false);
+
+    setGradeResult({ score, comment });
+    setFinalTitle(getTitleFromStats(progress, questionCount, hintLevel, null));
   };
   
   // Reset game
@@ -2011,79 +1997,6 @@ ${JSON.stringify(payload, null, 2)}`;
             設定
           </h2>
 
-          {/* Game Mode Selection */}
-          <div style={{
-            width: '100%',
-            maxWidth: '320px',
-            marginBottom: '2rem'
-          }}>
-            <label style={{
-              display: 'block',
-              fontSize: '0.85rem',
-              color: '#71717a',
-              marginBottom: '0.75rem',
-              letterSpacing: '0.1em'
-            }}>
-              ゲームモード
-            </label>
-            <div style={{
-              display: 'flex',
-              gap: '0.5rem'
-            }}>
-              <button
-                onClick={() => setGameMode('offline')}
-                style={{
-                  flex: 1,
-                  padding: '0.75rem',
-                  fontSize: '0.85rem',
-                  background: gameMode === 'offline'
-                    ? 'linear-gradient(135deg, rgba(120, 119, 198, 0.3) 0%, rgba(255, 119, 168, 0.2) 100%)'
-                    : 'rgba(255, 255, 255, 0.03)',
-                  border: gameMode === 'offline'
-                    ? '1px solid rgba(120, 119, 198, 0.5)'
-                    : '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: '6px',
-                  color: gameMode === 'offline' ? '#e4e4e7' : '#71717a',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                オフライン
-              </button>
-              <button
-                onClick={() => setGameMode('ai')}
-                style={{
-                  flex: 1,
-                  padding: '0.75rem',
-                  fontSize: '0.85rem',
-                  background: gameMode === 'ai'
-                    ? 'linear-gradient(135deg, rgba(120, 119, 198, 0.3) 0%, rgba(255, 119, 168, 0.2) 100%)'
-                    : 'rgba(255, 255, 255, 0.03)',
-                  border: gameMode === 'ai'
-                    ? '1px solid rgba(120, 119, 198, 0.5)'
-                    : '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: '6px',
-                  color: gameMode === 'ai' ? '#e4e4e7' : '#71717a',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                AI生成
-              </button>
-            </div>
-            <p style={{
-              fontSize: '0.7rem',
-              color: '#52525b',
-              marginTop: '0.5rem',
-              lineHeight: 1.4
-            }}>
-              {gameMode === 'offline'
-                ? '※ 事前に用意された良質な問題をプレイ（APIキー不要）'
-                : '※ AIが毎回新しい問題を生成（APIキーが必要）'
-              }
-            </p>
-          </div>
-
           {/* Difficulty */}
           <div style={{
             width: '100%',
@@ -2128,69 +2041,6 @@ ${JSON.stringify(payload, null, 2)}`;
               ))}
             </div>
           </div>
-
-          {/* API Key Input (only show if AI mode and not using env var) */}
-          {gameMode === 'ai' && !import.meta.env.VITE_ANTHROPIC_API_KEY && (
-            <div style={{
-              width: '100%',
-              maxWidth: '320px',
-              marginBottom: '2rem'
-            }}>
-              <label style={{
-                display: 'block',
-                fontSize: '0.85rem',
-                color: '#71717a',
-                marginBottom: '0.75rem',
-                letterSpacing: '0.1em'
-              }}>
-                Anthropic API キー
-                <a
-                  href="https://console.anthropic.com/settings/keys"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    marginLeft: '0.5rem',
-                    fontSize: '0.75rem',
-                    color: '#7877c6',
-                    textDecoration: 'none'
-                  }}
-                >
-                  (取得する)
-                </a>
-              </label>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-ant-..."
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  fontSize: '0.85rem',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: '6px',
-                  color: '#e4e4e7',
-                  outline: 'none',
-                  transition: 'all 0.2s ease'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = 'rgba(120, 119, 198, 0.5)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                }}
-              />
-              <p style={{
-                fontSize: '0.7rem',
-                color: '#52525b',
-                marginTop: '0.5rem',
-                lineHeight: 1.4
-              }}>
-                ※ ブラウザに保存されます。APIキーは安全に管理してください。
-              </p>
-            </div>
-          )}
 
           {/* Genre */}
           <div style={{
@@ -2253,15 +2103,8 @@ ${JSON.stringify(payload, null, 2)}`;
           </div>
           
           <button
-            onClick={() => {
-              console.log('Start button clicked. Mode:', gameMode);
-              if (gameMode === 'offline') {
-                startOfflineGame();
-              } else {
-                startGame();
-              }
-            }}
-            disabled={isLoading || (gameMode === 'ai' && !apiKey)}
+            onClick={startOfflineGame}
+            disabled={isLoading}
             style={{
               padding: '1rem 3rem',
               fontSize: '1rem',
@@ -2271,24 +2114,13 @@ ${JSON.stringify(payload, null, 2)}`;
               border: '1px solid rgba(120, 119, 198, 0.5)',
               borderRadius: '8px',
               color: '#e4e4e7',
-              cursor: (isLoading || (gameMode === 'ai' && !apiKey)) ? 'not-allowed' : 'pointer',
+              cursor: isLoading ? 'wait' : 'pointer',
               transition: 'all 0.3s ease',
-              opacity: (isLoading || (gameMode === 'ai' && !apiKey)) ? 0.6 : 1
+              opacity: isLoading ? 0.6 : 1
             }}
           >
-            {isLoading ? '問題を生成中...' : (gameMode === 'ai' && !apiKey) ? 'APIキーが必要です' : 'スタート'}
+            {isLoading ? '問題を準備中...' : 'スタート'}
           </button>
-
-          {gameMode === 'ai' && !apiKey && !import.meta.env.VITE_ANTHROPIC_API_KEY && (
-            <p style={{
-              fontSize: '0.8rem',
-              color: '#ef4444',
-              marginTop: '1rem',
-              textAlign: 'center'
-            }}>
-              AI生成モードではAPIキーが必要です
-            </p>
-          )}
         </div>
       )}
 
