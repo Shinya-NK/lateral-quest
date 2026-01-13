@@ -2399,24 +2399,29 @@ ${JSON.stringify(payload, null, 2)}`;
                 {/* Volume Slider Dropdown */}
                 {showVolumeSlider && (
                   <div
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      console.log('Dropdown click');
+                      e.stopPropagation();
+                    }}
                     onMouseDown={(e) => {
                       console.log('Dropdown mousedown');
                       e.stopPropagation();
                     }}
+                    onMouseEnter={() => console.log('Dropdown mouse enter')}
+                    onMouseMove={() => console.log('Dropdown mouse move')}
                     style={{
-                      position: 'absolute',
-                      top: '100%',
-                      right: 0,
-                      marginTop: '0.5rem',
-                      background: 'rgba(30, 30, 50, 0.95)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      position: 'fixed',
+                      top: '60px',
+                      right: '20px',
+                      background: 'rgba(30, 30, 50, 0.98)',
+                      border: '2px solid rgba(120, 119, 198, 0.5)',
                       borderRadius: '8px',
-                      padding: '1rem',
-                      zIndex: 1000,
-                      minWidth: '180px',
+                      padding: '1.5rem',
+                      zIndex: 9999,
+                      minWidth: '220px',
                       backdropFilter: 'blur(10px)',
-                      pointerEvents: 'auto'
+                      pointerEvents: 'auto',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
                     }}>
                     {/* BGM Volume */}
                     <div style={{ marginBottom: '0.75rem' }}>
