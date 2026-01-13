@@ -40,12 +40,17 @@ const useAudioManager = () => {
   }, [isBgmOn]);
 
   useEffect(() => {
+    console.log('BGM volume useEffect triggered:', bgmVolume);
     localStorage.setItem('lateralquest_bgm_volume', JSON.stringify(bgmVolume));
     if (masterGainRef.current && audioContextRef.current) {
+      const gainValue = bgmVolume / 100 * 0.3;
+      console.log('Setting BGM gain to:', gainValue);
       masterGainRef.current.gain.setValueAtTime(
-        bgmVolume / 100 * 0.3,
+        gainValue,
         audioContextRef.current.currentTime
       );
+    } else {
+      console.log('masterGainRef or audioContextRef not available');
     }
   }, [bgmVolume]);
   
@@ -54,12 +59,17 @@ const useAudioManager = () => {
   }, [isSEOn]);
   
   useEffect(() => {
+    console.log('SE volume useEffect triggered:', seVolume);
     localStorage.setItem('lateralquest_se_volume', JSON.stringify(seVolume));
     if (seGainRef.current && audioContextRef.current) {
+      const gainValue = seVolume / 100 * 0.5;
+      console.log('Setting SE gain to:', gainValue);
       seGainRef.current.gain.setValueAtTime(
-        seVolume / 100 * 0.5,
+        gainValue,
         audioContextRef.current.currentTime
       );
+    } else {
+      console.log('seGainRef or audioContextRef not available');
     }
   }, [seVolume]);
 
@@ -2417,13 +2427,24 @@ ${JSON.stringify(payload, null, 2)}`;
                         min="0"
                         max="100"
                         value={bgmVolume}
-                        onChange={(e) => setBgmVolume(Number(e.target.value))}
-                        disabled={!isBgmOn}
+                        onChange={(e) => {
+                          if (!isBgmOn) return;
+                          e.stopPropagation();
+                          const newValue = Number(e.target.value);
+                          console.log('BGM volume changed:', newValue);
+                          setBgmVolume(newValue);
+                        }}
+                        onInput={(e) => {
+                          if (!isBgmOn) return;
+                          const newValue = Number(e.target.value);
+                          console.log('BGM volume input:', newValue);
+                          setBgmVolume(newValue);
+                        }}
                         style={{
                           width: '100%',
                           opacity: isBgmOn ? 1 : 0.3,
-                          pointerEvents: isBgmOn ? 'auto' : 'none',
-                          cursor: isBgmOn ? 'pointer' : 'not-allowed'
+                          cursor: isBgmOn ? 'pointer' : 'not-allowed',
+                          pointerEvents: isBgmOn ? 'auto' : 'none'
                         }}
                       />
                     </div>
@@ -2444,13 +2465,24 @@ ${JSON.stringify(payload, null, 2)}`;
                         min="0"
                         max="100"
                         value={seVolume}
-                        onChange={(e) => setSEVolume(Number(e.target.value))}
-                        disabled={!isSEOn}
+                        onChange={(e) => {
+                          if (!isSEOn) return;
+                          e.stopPropagation();
+                          const newValue = Number(e.target.value);
+                          console.log('SE volume changed:', newValue);
+                          setSEVolume(newValue);
+                        }}
+                        onInput={(e) => {
+                          if (!isSEOn) return;
+                          const newValue = Number(e.target.value);
+                          console.log('SE volume input:', newValue);
+                          setSEVolume(newValue);
+                        }}
                         style={{
                           width: '100%',
                           opacity: isSEOn ? 1 : 0.3,
-                          pointerEvents: isSEOn ? 'auto' : 'none',
-                          cursor: isSEOn ? 'pointer' : 'not-allowed'
+                          cursor: isSEOn ? 'pointer' : 'not-allowed',
+                          pointerEvents: isSEOn ? 'auto' : 'none'
                         }}
                       />
                     </div>
