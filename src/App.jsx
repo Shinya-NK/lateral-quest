@@ -708,9 +708,11 @@ const useAudioManager = () => {
   const toggleBgm = useCallback(() => {
     setIsBgmOn(prev => {
       const newValue = !prev;
-      if (newValue && isUnlockedRef.current && !isPlayingRef.current) {
+      if (newValue && isUnlockedRef.current) {
+        // Always restart BGM when turning on
         setTimeout(() => startBgm(true), 0);
-      } else if (!newValue && isPlayingRef.current) {
+      } else if (!newValue) {
+        // Always stop BGM when turning off
         stopBgm(true);
       }
       return newValue;
@@ -2399,13 +2401,10 @@ ${JSON.stringify(payload, null, 2)}`;
                         max="100"
                         value={bgmVolume}
                         onChange={(e) => setBgmVolume(Number(e.target.value))}
+                        disabled={!isBgmOn}
                         style={{
                           width: '100%',
-                          height: '4px',
-                          appearance: 'none',
-                          background: `linear-gradient(to right, #7877c6 0%, #7877c6 ${bgmVolume}%, #3f3f46 ${bgmVolume}%, #3f3f46 100%)`,
-                          borderRadius: '2px',
-                          cursor: 'pointer'
+                          opacity: isBgmOn ? 1 : 0.3
                         }}
                       />
                     </div>
@@ -2427,13 +2426,10 @@ ${JSON.stringify(payload, null, 2)}`;
                         max="100"
                         value={seVolume}
                         onChange={(e) => setSEVolume(Number(e.target.value))}
+                        disabled={!isSEOn}
                         style={{
                           width: '100%',
-                          height: '4px',
-                          appearance: 'none',
-                          background: `linear-gradient(to right, #ff77a8 0%, #ff77a8 ${seVolume}%, #3f3f46 ${seVolume}%, #3f3f46 100%)`,
-                          borderRadius: '2px',
-                          cursor: 'pointer'
+                          opacity: isSEOn ? 1 : 0.3
                         }}
                       />
                     </div>
