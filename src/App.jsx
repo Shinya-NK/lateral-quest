@@ -2101,7 +2101,132 @@ ${JSON.stringify(payload, null, 2)}`;
               </p>
             )}
           </div>
-          
+
+          {/* Audio Settings */}
+          <div style={{
+            width: '100%',
+            maxWidth: '320px',
+            marginBottom: '2rem',
+            padding: '1rem',
+            background: 'rgba(255, 255, 255, 0.02)',
+            border: '1px solid rgba(255, 255, 255, 0.05)',
+            borderRadius: '8px'
+          }}>
+            <label style={{
+              display: 'block',
+              fontSize: '0.85rem',
+              color: '#71717a',
+              marginBottom: '1rem',
+              letterSpacing: '0.1em'
+            }}>
+              音量設定
+            </label>
+
+            {/* BGM Volume */}
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.5rem'
+              }}>
+                <span style={{
+                  fontSize: '0.75rem',
+                  color: '#a1a1aa'
+                }}>
+                  BGM
+                </span>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <button
+                    onClick={toggleBgm}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: isBgmOn ? '#7877c6' : '#52525b',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      padding: '0.25rem'
+                    }}
+                  >
+                    {isBgmOn ? '🔊' : '🔇'}
+                  </button>
+                  <span style={{
+                    fontSize: '0.75rem',
+                    color: '#71717a',
+                    minWidth: '2rem',
+                    textAlign: 'right'
+                  }}>
+                    {bgmVolume}%
+                  </span>
+                </div>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={bgmVolume}
+                onChange={(e) => setBgmVolume(Number(e.target.value))}
+                disabled={!isBgmOn}
+                style={{
+                  width: '100%',
+                  opacity: isBgmOn ? 1 : 0.3
+                }}
+              />
+            </div>
+
+            {/* SE Volume */}
+            <div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.5rem'
+              }}>
+                <span style={{
+                  fontSize: '0.75rem',
+                  color: '#a1a1aa'
+                }}>
+                  効果音
+                </span>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <button
+                    onClick={toggleSE}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: isSEOn ? '#7877c6' : '#52525b',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      padding: '0.25rem'
+                    }}
+                  >
+                    {isSEOn ? '🔊' : '🔇'}
+                  </button>
+                  <span style={{
+                    fontSize: '0.75rem',
+                    color: '#71717a',
+                    minWidth: '2rem',
+                    textAlign: 'right'
+                  }}>
+                    {seVolume}%
+                  </span>
+                </div>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={seVolume}
+                onChange={(e) => setSEVolume(Number(e.target.value))}
+                disabled={!isSEOn}
+                style={{
+                  width: '100%',
+                  opacity: isSEOn ? 1 : 0.3
+                }}
+              />
+            </div>
+          </div>
+
           <button
             onClick={startOfflineGame}
             disabled={isLoading}
